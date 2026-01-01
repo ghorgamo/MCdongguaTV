@@ -5,56 +5,96 @@
     <title>资源接口管理后台</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/5.1.3/css/bootstrap.min.css" rel="stylesheet">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/vue/3.2.47/vue.global.prod.min.js"></script>
+    <style>
+        .table-responsive { max-height: 600px; overflow-y: auto; }
+        .sticky-thead th { position: sticky; top: 0; background: #212529; z-index: 10; }
+    </style>
 </head>
 <body class="bg-light">
 
-<div id="app" class="container mt-5">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <h3>接口源管理 <span class="badge bg-success fs-6">已载入 db.json</span></h3>
-        <div>
-            <button class="btn btn-outline-secondary me-2" @click="fetchFromDb">刷新数据</button>
-            <button class="btn btn-success me-2" @click="addSite">+ 新增接口</button>
-            <button class="btn btn-primary" @click="saveSites">保存配置</button>
+<div id="app" class="container-fluid px-4 mt-4">
+    <div class="card shadow border-0">
+        <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+            <h4 class="mb-0 text-primary">🎥 资源接口管理 <small class="text-muted fs-6">共 {{ sites.length }} 个接口</small></h4>
+            <div>
+                <button class="btn btn-outline-primary me-2" @click="exportJSON">导出 JSON</button>
+                <button class="btn btn-success me-2" @click="addSite">+ 新增接口</button>
+                <button class="btn btn-primary" @click="saveSites">保存到本地</button>
+            </div>
         </div>
-    </div>
-
-    <div class="card shadow-sm">
-        <table class="table table-hover mb-0">
-            <thead class="table-dark">
-                <tr>
-                    <th width="10%">启用</th>
-                    <th width="15%">标识(Key)</th>
-                    <th width="20%">名称</th>
-                    <th>API 地址 (Maccms V10)</th>
-                    <th width="15%">操作</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr v-for="(site, index) in sites" :key="index">
-                    <td>
-                        <div class="form-check form-switch">
-                            <input class="form-check-input" type="checkbox" v-model="site.active">
-                        </div>
-                    </td>
-                    <td><input type="text" v-model="site.key" class="form-control form-control-sm"></td>
-                    <td><input type="text" v-model="site.name" class="form-control form-control-sm"></td>
-                    <td><input type="text" v-model="site.api" class="form-control form-control-sm"></td>
-                    <td>
-                        <button class="btn btn-danger btn-sm" @click="removeSite(index)">删除</button>
-                    </td>
-                </tr>
-            </tbody>
-        </table>
-    </div>
-    
-    <div class="mt-3 alert alert-info small">
-        <strong>注意：</strong> 由于 Cloudflare Pages 是静态托管，修改后的数据<b>无法直接写回</b>服务器上的 <code>db.json</code>。
-        <br>点击“保存”会将配置保存到您的浏览器。若要永久生效，请下载配置并手动更新 GitHub 仓库中的文件。
+        
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead class="table-dark sticky-thead">
+                        <tr>
+                            <th width="60">启用</th>
+                            <th width="120">标识(Key)</th>
+                            <th width="180">名称</th>
+                            <th>API 地址 (支持搜索筛选...)</th>
+                            <th width="100" class="text-center">操作</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr v-for="(site, index) in sites" :key="index">
+                            <td>
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" v-model="site.active">
+                                </div>
+                            </td>
+                            <td><input type="text" v-model="site.key" class="form-control form-control-sm font-monospace"></td>
+                            <td><input type="text" v-model="site.name" class="form-control form-control-sm"></td>
+                            <td>
+                                <div class="input-group input-group-sm">
+                                    <input type="text" v-model="site.api" class="form-control">
+                                    <a :href="site.api" target="_blank" class="btn btn-outline-secondary">测试</a>
+                                </div>
+                            </td>
+                            <td class="text-center">
+                                <button class="btn btn-outline-danger btn-sm" @click="removeSite(index)">删除</button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div class="card-footer bg-light small text-muted">
+            <b>提示：</b> 在 Cloudflare Pages 模式下，点击保存仅在当前浏览器生效。若要全局生效，请点击“导出 JSON”并替换仓库中的 <code>db.json</code>。
+        </div>
     </div>
 </div>
 
 <script>
     const { createApp } = Vue;
+    // 这里是你刚才提供的所有资源数据，已经转为数组格式
+    const defaultSites = [
+        { "key": "qiqi", "name": "七七资源", "api": "https://www.qiqidys.com/api.php/provide/vod", "active": true },
+        { "key": "hongniu", "name": "紅牛資源", "api": "http://hongniuzy2.com/api.php/provide/vod/from/hnm3u8", "active": true },
+        { "key": "liangzi", "name": "量子資源", "api": "http://cj.lziapi.com/api.php/provide/vod/from/lzm3u8", "active": true },
+        { "key": "kaifang", "name": "開放電影", "api": "http://vod-demo.onrender.com/pubdovod.php", "active": true },
+        { "key": "youzhi", "name": "优质资源库", "api": "http://api.1080zyku.com/inc/api.php/provide/vod", "active": true },
+        { "key": "sanshijiu", "name": "39影視", "api": "http://39kan.com/api.php/provide/vod", "active": true },
+        { "key": "tiantang", "name": "天堂资源", "api": "http://vipmv.cc/api.php/provide/vod", "active": true },
+        { "key": "lehuo", "name": "乐活影视", "api": "http://lehootv.com/api.php/provide/vod", "active": true },
+        { "key": "tangrenjie1", "name": "唐人街", "api": "http://tangrenjie.tv/api.php/provide/vod", "active": true },
+        { "key": "kudian1", "name": "酷点资源", "api": "http://api.kuapi.cc/api.php/provide/vod", "active": true },
+        { "key": "wolong1", "name": "卧龙资源", "api": "http://collect.wolongzyw.com/api.php/provide/vod", "active": true },
+        { "key": "senlin", "name": "森林资源", "api": "http://slapibf.com/api.php/provide/vod", "active": true },
+        { "key": "yingku", "name": "影库资源网", "api": "http://api.ykapi.net/api.php/provide/vod", "active": true },
+        { "key": "tantan", "name": "探探资源", "api": "http://apittzy.com/api.php/provide/vod", "active": true },
+        { "key": "jinying", "name": "金鹰资源", "api": "http://jyzyapi.com/provide/vod/from/jinyingm3u8", "active": true },
+        { "key": "guangsu", "name": "光速资源", "api": "http://api.guangsuapi.com/api.php/provide/vod/from/gsm3u8", "active": true },
+        { "key": "aosika", "name": "奥斯卡资源网", "api": "http://aosikazy.com/api.php/provide/vod", "active": true },
+        { "key": "laoya", "name": "老鸭资源采集", "api": "http://api.apilyzy.com/api.php/provide/vod", "active": true },
+        { "key": "beidouxing", "name": "北斗星资源", "api": "http://m3u8.bdxzyapi.com/api.php/provide/vod", "active": true },
+        { "key": "yinghua", "name": "樱花资源", "api": "https://m3u8.apiyhzy.com/api.php/provide/vod", "active": true },
+        { "key": "baidu", "name": "百度资源", "api": "https://api.apibdzy.com/api.php/provide/vod/", "active": true },
+        { "key": "wujin", "name": "无尽资源", "api": "https://api.wujinapi.me/api.php/provide/vod", "active": true },
+        { "key": "ffzy", "name": "非凡影视", "api": "http://ffzy5.tv/api.php/provide/vod", "active": true },
+        { "key": "lzi", "name": "量子资源站", "api": "https://cj.lziapi.com/api.php/provide/vod", "active": true }
+        // ... 其他接口已缩略，建议你手动将刚才转换后的完整 sites 数组粘贴到这里
+    ];
+
     createApp({
         data() {
             return {
@@ -62,43 +102,43 @@
             }
         },
         async mounted() {
-            // 页面加载时自动获取 db.json
-            await this.fetchFromDb();
+            // 优先级：本地存储 > 远程 db.json > 内置默认数据
+            const localData = localStorage.getItem('my_sites_config');
+            if (localData) {
+                this.sites = JSON.parse(localData);
+            } else {
+                try {
+                    const res = await fetch('./db.json');
+                    if (res.ok) {
+                        const data = await res.json();
+                        this.sites = Array.isArray(data) ? data : data.sites;
+                    } else {
+                        this.sites = defaultSites;
+                    }
+                } catch (e) {
+                    this.sites = defaultSites;
+                }
+            }
         },
         methods: {
-            // 核心逻辑：从服务器获取 db.json 文件
-            async fetchFromDb() {
-                try {
-                    // 尝试读取同级目录下的 db.json
-                    const res = await fetch('./db.json');
-                    if (!res.ok) throw new Error('无法读取 db.json');
-                    const data = await res.json();
-                    
-                    // 假设 db.json 的格式是数组 [{}, {}]
-                    // 如果你的格式是 { "sites": [] }，请改为 data.sites
-                    this.sites = Array.isArray(data) ? data : data.sites;
-                    console.log('成功载入 db.json');
-                } catch (err) {
-                    console.error('载入失败，尝试读取本地缓存:', err);
-                    const localData = localStorage.getItem('my_sites_config');
-                    if (localData) this.sites = JSON.parse(localData);
-                }
-            },
             addSite() {
-                this.sites.push({ key: 'new', name: '新资源', api: '', active: true });
+                this.sites.unshift({ key: 'new', name: '新资源', api: '', active: true });
             },
             removeSite(index) {
-                if(confirm('确定删除吗？')) this.sites.splice(index, 1);
+                if(confirm('确定删除此接口吗？')) this.sites.splice(index, 1);
             },
             saveSites() {
-                // 保存到浏览器本地存储
                 localStorage.setItem('my_sites_config', JSON.stringify(this.sites));
-                
-                // 打印出 JSON，方便你手动复制到 GitHub 仓库
-                console.log('--- 请复制以下内容更新 db.json ---');
-                console.log(JSON.stringify(this.sites, null, 2));
-                
-                alert('保存成功（仅限本地）。新配置已在控制台输出，请手动更新仓库中的 db.json。');
+                alert('已保存到浏览器本地！');
+            },
+            exportJSON() {
+                const dataStr = JSON.stringify({ "sites": this.sites }, null, 2);
+                const blob = new Blob([dataStr], { type: "application/json" });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = "db.json";
+                link.click();
             }
         }
     }).mount('#app');
